@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="logo.png">
+<title>Gerador de Recibos e Notas</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#14202e;--mu:#5b6b7c;--bd:#d9e0e8;--ac:#1d6fb8;--ac2:#f08a1c;--inp:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10161d;--card:#18212b;--tx:#e8eef5;--mu:#9aabbc;--bd:#2a3644;--ac:#4a9be0;--inp:#111922}}
+:root[data-theme="dark"]{--bg:#10161d;--card:#18212b;--tx:#e8eef5;--mu:#9aabbc;--bd:#2a3644;--ac:#4a9be0;--inp:#111922}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:minmax(0,420px) minmax(0,1fr);align-items:start}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ac);margin:18px 0 8px}
+h2:first-child{margin-top:0}
+label{display:block;font-size:13px;color:var(--mu);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--inp);color:var(--tx);font:inherit}
+textarea{min-height:56px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.it{display:grid;grid-template-columns:1fr 54px 90px 30px;gap:6px;margin-bottom:6px}
+.it button{padding:0}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 12px}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.btns button{flex:1}
+.note{font-size:12px;color:var(--mu);margin-top:8px}
+.tot{font-weight:600;margin-top:6px}
+.prev{overflow:auto;background:#e3e8ee;border-radius:14px;padding:14px}
+#doc{background:#fff;color:#000;max-width:794px;margin:0 auto;padding:40px 48px;min-height:600px;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+@media print{body{background:#fff}.panel,.note{display:none}.wrap{display:block;padding:0}.prev{padding:0;background:none;overflow:visible}#doc{box-shadow:none;max-width:none;padding:0}}
+[hidden]{display:none!important}
+input,select,textarea{font-size:16px}
+#login{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(160deg,var(--bg),var(--card))}
+.lbox{width:100%;max-width:400px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:28px 22px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.lbox img{display:block;width:min(240px,70%);margin:0 auto 18px;background:#fff;border-radius:12px;padding:10px}
+.lbox h1{font-size:18px;text-align:center;margin:0 0 10px}
+.lbox input,.lbox button{font-size:16px;padding:12px}
+.lbox .p{width:100%;margin-top:14px}
+.pw{display:flex;gap:6px}.pw button{white-space:nowrap}
+#lerr{color:#c0392b;font-size:13px;min-height:18px;margin-top:8px}
+.bar{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--mu);font-size:13px}
+.hrow{display:flex;gap:6px;margin-bottom:6px}.hrow button:first-child{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#st{font-size:13px;margin-top:8px;min-height:18px}
+@media print{.bar{display:none}}
+</style>
+</head>
+<body>
+<div id="login"><form id="lf" class="lbox">
+<img src="logo.png" alt="Pepe Climatização">
+<h1>Acesso ao sistema</h1>
+<label for="lc">CNPJ</label><input id="lc" inputmode="numeric" autocomplete="username" placeholder="00.000.000/0000-00" maxlength="18">
+<label for="lp">Senha</label><div class="pw"><input id="lp" type="password" autocomplete="current-password"><button type="button" id="tg">Mostrar</button></div>
+<div id="lerr" role="alert"></div>
+<button class="p" id="lb">Entrar</button>
+</form></div>
+<div id="app" hidden>
+<div class="bar"><span id="who"></span><button type="button" id="bOut">Sair</button></div>
+<div class="wrap">
+<div class="panel">
+<h2>1. O que você quer emitir?</h2>
+<select id="tipo">
+<option value="servico">Recibo de prestação de serviços</option>
+<option value="venda">Nota de venda</option>
+<option value="compra">Nota de compra</option>
+</select>
+
+<h2>2. Seus dados (ficam salvos)</h2>
+<label>Nome da empresa</label><input id="emNome">
+<div class="row"><div><label>CNPJ</label><input id="emCnpj"></div><div><label>Telefone</label><input id="emTel" placeholder="(83) 9 0000-0000"></div></div>
+<label>Razão social</label><input id="emRazao">
+
+<h2 id="hCl">3. Cliente</h2>
+<label id="lCl">Nome do cliente</label><input id="clNome">
+<label>CPF / CNPJ (opcional)</label><input id="clDoc">
+
+<h2>4. Itens</h2>
+<div id="items"></div>
+<button id="add" type="button">+ Adicionar item</button>
+<div class="tot" id="tot"></div>
+
+<h2>5. Pagamento</h2>
+<div class="row"><div><label>Data</label><input type="date" id="data"></div><div><label>Forma</label>
+<select id="forma"><option>Pix</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option><option>Boleto</option></select></div></div>
+<label>Cidade (opcional)</label><input id="local" placeholder="Campina Grande - PB">
+<label>Observações (opcional)</label><textarea id="obs"></textarea>
+
+<div class="btns"><button class="p" id="bSave" type="button">Salvar no banco</button><button id="bPrint" type="button">Imprimir / PDF</button><button id="bNew" type="button">Novo</button></div>
+<div id="st" role="status"></div>
+<h2>Recibos salvos</h2><div id="hist"></div>
+</div>
+<div class="prev"><div id="doc"></div></div>
+</div>
+</div>
+
+<script>
+const LOGO="logo.png";window.APP={num:null};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const U=["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+const D=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+const C=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+function ate999(n){if(n==100)return"cem";const c=Math.floor(n/100),r=n%100,p=[];if(c)p.push(C[c]);if(r){if(r<20)p.push(U[r]);else{const d=Math.floor(r/10),u=r%10;p.push(D[d]+(u?" e "+U[u]:""))}}return p.join(" e ")}
+function inteiro(n){if(n==0)return"zero";const mi=Math.floor(n/1e6),mil=Math.floor(n%1e6/1000),r=n%1000,p=[];
+if(mi)p.push([ate999(mi)+(mi==1?" milhão":" milhões"),mi*1e6]);if(mil)p.push([mil==1?"mil":ate999(mil)+" mil",mil*1000]);if(r)p.push([ate999(r),r]);
+let s="";p.forEach((x,i)=>{if(i){const last=i==p.length-1;s+=(last&&(x[1]<100||x[1]%100==0))?" e ":" "}s+=x[0]});return s}
+function reais(v){const c=Math.round(v*100),r=Math.floor(c/100),ct=c%100,p=[];
+if(r||!ct)p.push(inteiro(r)+(r==1?" real":(r>=1e6&&r%1e6==0?" de reais":" reais")));if(ct)p.push(inteiro(ct)+(ct==1?" centavo":" centavos"));
+const s=p.join(" e ");return s.charAt(0).toUpperCase()+s.slice(1)}
+const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+function dataExt(iso){if(!iso)return"";const[a,m,d]=iso.split("-");return parseInt(d)+" de "+MESES[parseInt(m)-1]+" de "+a}
+
+const T={
+servico:{t:"RECIBO DE PRESTAÇÃO DE SERVIÇOS",a:"Prestador",b:"Recebemos de",ref:"Referente a",sig:"Assinatura do Prestador",cl:"Cliente",
+ dec:"Declaro para os devidos fins que o valor acima foi recebido, dando plena quitação pelo serviço prestado."},
+venda:{t:"NOTA DE VENDA",a:"Vendedor",b:"Comprador",ref:"Itens vendidos",sig:"Assinatura do Vendedor",cl:"Comprador",
+ dec:"Declaro para os devidos fins que o valor acima foi recebido pela venda dos itens descritos, dando plena quitação."},
+compra:{t:"NOTA DE COMPRA",a:"Comprador",b:"Fornecedor",ref:"Itens comprados",sig:"Assinatura do Fornecedor",cl:"Fornecedor",
+ dec:"Declaro para os devidos fins que o valor acima foi pago ao fornecedor pelos itens descritos, dando plena quitação."}
+};
+const DOC_CSS="#doc{font-family:Cambria,Georgia,'Times New Roman',serif;font-size:13px;line-height:1.5}#doc img{display:block;margin:0 auto 18px;width:200px;max-width:60%}#doc h1{text-align:center;font-size:17px;margin:0 0 26px}#doc p{margin:0 0 16px}#doc table{width:100%;border-collapse:collapse;margin:4px 0 16px}#doc th,#doc td{border-bottom:1px solid #999;padding:4px 6px;text-align:left}#doc th:nth-child(n+2),#doc td:nth-child(n+2){text-align:right}#doc .sig{text-align:center;margin-top:48px}#doc .sig div{border-top:1px solid #000;width:70%;margin:0 auto 4px}";
+const st=document.createElement("style");st.textContent=DOC_CSS;document.head.appendChild(st);
+
+let items=[{d:"",q:1,v:0}];
+const EM=["emNome","emCnpj","emRazao","emTel"];
+const DEF={emNome:"Pepe Climatização",emCnpj:"61.871.894/0001-80",emRazao:"61.871.894 Taíssa Ferreira da Silva",emTel:""};
+let saved={};try{saved=JSON.parse(localStorage.getItem("emitente")||"{}")}catch(e){}
+EM.forEach(k=>$(k).value=saved[k]!==undefined?saved[k]:DEF[k]);
+const hoje=new Date();$("data").value=hoje.getFullYear()+"-"+String(hoje.getMonth()+1).padStart(2,"0")+"-"+String(hoje.getDate()).padStart(2,"0");
+
+function total(){return items.reduce((s,i)=>s+(+i.q||0)*(+i.v||0),0)}
+function drawItems(){
+ $("items").innerHTML=items.map((it,n)=>`<div class="it"><input data-n="${n}" data-k="d" placeholder="Descrição" value="${esc(it.d)}"><input data-n="${n}" data-k="q" type="number" min="0" step="any" value="${it.q}" title="Qtd"><input data-n="${n}" data-k="v" type="number" min="0" step="0.01" placeholder="Valor" value="${it.v||""}"><button type="button" data-del="${n}">×</button></div>`).join("");
+}
+function build(){
+ const k=$("tipo").value,t=T[k],tt=total(),L=[];
+ const A=[esc($("emNome").value)];if($("emCnpj").value)A.push("CNPJ: "+esc($("emCnpj").value));if($("emRazao").value)A.push("Razão Social: "+esc($("emRazao").value));if($("emTel").value)A.push("Telefone: "+esc($("emTel").value));
+ const B=[esc($("clNome").value)||"&nbsp;"];if($("clDoc").value)B.push("CPF/CNPJ: "+esc($("clDoc").value));
+ const filled=items.filter(i=>i.d.trim());
+ let ref;
+ if(k=="servico")ref=filled.map(i=>esc(i.d)).join("<br>")||"&nbsp;";
+ else ref="</p><table><tr><th>Descrição</th><th>Qtd</th><th>Unitário</th><th>Subtotal</th></tr>"+filled.map(i=>`<tr><td>${esc(i.d)}</td><td>${+i.q}</td><td>${brl(+i.v||0)}</td><td>${brl((+i.q||0)*(+i.v||0))}</td></tr>`).join("")+"</table><p style='display:none'>";
+ const loc=$("local").value?esc($("local").value)+", "+dataExt($("data").value):"";
+ return `<img src="${LOGO}" alt="">
+<h1>${t.t}${APP.num?" Nº "+String(APP.num).padStart(4,"0"):""}</h1>
+<p><b>${t.a}:</b><br>${A.join("<br>")}</p>
+<p><b>${t.b}:</b><br>${B.join("<br>")}</p>
+<p>Valor:<br><b>${brl(tt)}</b> (${reais(tt)})</p>
+<p>${t.ref}:<br>${ref}</p>
+<p>Forma de pagamento: ${esc($("forma").value)}<br>Data: ${dataExt($("data").value)}</p>
+${$("obs").value?"<p>Observações:<br>"+esc($("obs").value).replace(/\n/g,"<br>")+"</p>":""}
+<p>${t.dec}</p>
+<div class="sig"><div></div>${t.sig}</div>
+<p style="text-align:center;margin-top:28px">Local e data: ${loc||"______________________________________"}</p>`;
+}
+function render(){
+ const t=T[$("tipo").value];
+ $("hCl").textContent="3. "+t.cl;$("lCl").textContent="Nome do "+t.cl.toLowerCase();
+ $("tot").textContent="Total: "+brl(total())+" ("+reais(total())+")";
+ $("doc").innerHTML=build();
+}
+document.addEventListener("input",e=>{
+ const el=e.target;
+ if(el.dataset&&el.dataset.n!==undefined){items[+el.dataset.n][el.dataset.k]=el.dataset.k=="d"?el.value:el.value}
+ if(EM.includes(el.id)){const o={};EM.forEach(x=>o[x]=$(x).value);try{localStorage.setItem("emitente",JSON.stringify(o))}catch(e){}}
+ render();
+});
+document.addEventListener("change",render);
+document.addEventListener("click",e=>{
+ const d=e.target.dataset&&e.target.dataset.del;
+ if(d!==undefined&&d!==""){items.splice(+d,1);if(!items.length)items=[{d:"",q:1,v:0}];drawItems();render()}
+});
+$("add").onclick=()=>{items.push({d:"",q:1,v:0});drawItems();render()};
+$("bPrint").onclick=()=>{try{window.print()}catch(e){alert("Use o botão Baixar arquivo.")}};
+Object.assign(APP,{$,esc,brl,render,drawItems,total,EM,setItems(a){items=a},getItems(){return items}});drawItems();render();
+</script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,collection,getDocs,deleteDoc,query,orderBy,limit,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {firebaseConfig,EMAIL_DOMAIN} from "./firebase-config.js";
+const A=window.APP,$=A.$,pad=n=>String(n).padStart(4,"0");
+const auth=getAuth(initializeApp(firebaseConfig)),db=getFirestore(auth.app);
+let uid=null,cache={};
+const say=(m,ok)=>{$("st").textContent=m;$("st").style.color=ok?"#1a8a3c":"#c0392b"};
+const lerr=m=>$("lerr").textContent=m;
+$("lc").oninput=e=>{let d=e.target.value.replace(/\D/g,"").slice(0,14);
+ d=d.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2");e.target.value=d};
+$("tg").onclick=()=>{const p=$("lp");p.type=p.type=="password"?"text":"password";$("tg").textContent=p.type=="password"?"Mostrar":"Ocultar"};
+$("lf").onsubmit=async e=>{e.preventDefault();lerr("");const d=$("lc").value.replace(/\D/g,"");
+ if(d.length!=14)return lerr("Digite o CNPJ completo.");
+ $("lb").disabled=true;
+ try{await signInWithEmailAndPassword(auth,d+"@"+EMAIL_DOMAIN,$("lp").value)}
+ catch(x){lerr(x.code=="auth/network-request-failed"?"Sem conexão com a internet.":"CNPJ ou senha incorretos.")}
+ $("lb").disabled=false};
+$("bOut").onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{
+ uid=u?u.uid:null;$("login").hidden=!!u;$("app").hidden=!u;
+ if(!u){$("lp").value="";return}
+ $("who").textContent="CNPJ "+u.email.split("@")[0].replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5");
+ try{const s=await getDoc(doc(db,"users",uid,"config","emitente"));
+  if(s.exists()){const e=s.data();A.EM.forEach(k=>{if(e[k]!==undefined)$(k).value=e[k]});A.render()}}catch(x){}
+ hist()});
+const val=()=>({tipo:$("tipo").value,clNome:$("clNome").value,clDoc:$("clDoc").value,forma:$("forma").value,data:$("data").value,local:$("local").value,obs:$("obs").value,
+ items:A.getItems().map(i=>({d:i.d,q:+i.q||0,v:+i.v||0})),total:A.total()});
+$("bSave").onclick=async()=>{if(!uid)return;$("bSave").disabled=true;
+ try{
+  if(!A.num)A.num=await runTransaction(db,async t=>{const r=doc(db,"users",uid,"config","contador"),s=await t.get(r),n=(s.exists()?s.data().n:0)+1;t.set(r,{n});return n});
+  const em={};A.EM.forEach(k=>em[k]=$(k).value);
+  await setDoc(doc(db,"users",uid,"recibos",String(A.num)),{...val(),num:A.num,emitente:em,salvoEm:serverTimestamp()});
+  await setDoc(doc(db,"users",uid,"config","emitente"),em);
+  A.render();say("Salvo no banco: Nº "+pad(A.num),1);hist();
+ }catch(x){say("Não foi possível salvar. Confira as regras do Firestore e a conexão.",0)}
+ $("bSave").disabled=false};
+async function hist(){
+ try{const s=await getDocs(query(collection(db,"users",uid,"recibos"),orderBy("num","desc"),limit(30)));cache={};
+  $("hist").innerHTML=s.empty?'<div class="note">Nenhum recibo salvo ainda.</div>':s.docs.map(d=>{const r=d.data();cache[d.id]=r;
+   return `<div class="hrow"><button type="button" data-open="${d.id}">Nº ${pad(r.num)} · ${A.esc(r.clNome||"sem nome")} · ${A.brl(r.total||0)}</button><button type="button" data-rm="${d.id}" title="Excluir">×</button></div>`}).join("")
+ }catch(x){$("hist").innerHTML='<div class="note">Não foi possível carregar o histórico.</div>'}}
+$("hist").onclick=async e=>{const o=e.target.dataset.open,r=e.target.dataset.rm;
+ if(o){const x=cache[o];$("tipo").value=x.tipo;["clNome","clDoc","forma","data","local","obs"].forEach(k=>$(k).value=x[k]||"");
+  A.setItems(x.items&&x.items.length?x.items:[{d:"",q:1,v:0}]);A.num=x.num;A.drawItems();A.render();say("Recibo Nº "+pad(x.num)+" aberto.",1);scrollTo(0,0)}
+ if(r&&confirm("Excluir este recibo?")){try{await deleteDoc(doc(db,"users",uid,"recibos",r));if(A.num==r)A.num=null;A.render();hist()}catch(x){say("Não foi possível excluir.",0)}}};
+$("bNew").onclick=()=>{A.num=null;["clNome","clDoc","obs"].forEach(k=>$(k).value="");A.setItems([{d:"",q:1,v:0}]);A.drawItems();A.render();say("")};
+</script>
+</body>
+</html>
